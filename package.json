@@ -1,0 +1,13 @@
+{
+  "name": "webrtc-hotspot-demo",
+  "version": "1.0.0",
+  "description": "Self-hosted PeerJS video call demo for LAN/hotspot use",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "peer": "^1.0.2"
+  }
+}
