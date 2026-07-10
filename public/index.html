@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oracle Beam Video Call Demo</title>
+<style>
+  body {
+    font-family: -apple-system, Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    margin: 0;
+    padding: 16px;
+    text-align: center;
+  }
+  h2 { margin: 8px 0; }
+  #myId {
+    font-size: 1.1em;
+    background: #222;
+    padding: 10px;
+    border-radius: 8px;
+    word-break: break-all;
+    margin-bottom: 12px;
+  }
+  input {
+    padding: 10px;
+    font-size: 1em;
+    width: 70%;
+    border-radius: 6px;
+    border: none;
+    margin-right: 6px;
+  }
+  button {
+    padding: 10px 16px;
+    font-size: 1em;
+    border-radius: 6px;
+    border: none;
+    background: #2d7ef7;
+    color: white;
+    margin-top: 8px;
+  }
+  #hangup { background: #e74c3c; display: none; }
+  video {
+    width: 100%;
+    max-width: 320px;
+    background: #000;
+    border-radius: 8px;
+    margin: 8px;
+  }
+  #videos { display: flex; flex-wrap: wrap; justify-content: center; }
+  #status { margin-top: 10px; color: #9be89b; min-height: 20px; }
+</style>
+</head>
+<body>
+
+<h2>Oracle Beam Video Call Demo</h2>
+
+<div>Your ID (share this with the other phone):</div>
+<div id="myId">connecting...</div>
+
+<div>
+  <input id="remoteId" placeholder="Enter other phone's ID" />
+  <button id="callBtn">Call</button>
+  <button id="hangup">Hang Up</button>
+</div>
+
+<div id="status"></div>
+
+<div id="videos">
+  <style>#localVideo{transform:scaleX(-1);}</style>
+  <video id="localVideo" autoplay playsinline muted></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const statusEl = document.getElementById('status');
+const myIdEl = document.getElementById('myId');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const hangupBtn = document.getElementById('hangup');
+
+let localStream = null;
+let currentCall = null;
+
+const peer = new Peer(undefined, {
+  host: location.hostname,
+  port: location.port || 9000,
+  path: '/peerjs',
+  secure: true,
+});
+
+peer.on('open', (id) => {
+  myIdEl.textContent = id;
+});
+
+peer.on('error', (err) => {
+  statusEl.textContent = 'Error: ' + err.type;
+  console.error(err);
+});
+
+async function initMedia() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: { echoCancellation: true, noiseSuppression: true },
+    });
+    localVideo.srcObject = localStream;
+  } catch (err) {
+    statusEl.textContent = 'Camera/mic access failed: ' + err.message;
+  }
+}
+initMedia();
+
+peer.on('call', (call) => {
+  statusEl.textContent = 'Incoming call... answering';
+  call.answer(localStream);
+  setupCall(call);
+});
+
+document.getElementById('callBtn').addEventListener('click', () => {
+  const remoteId = document.getElementById('remoteId').value.trim();
+  if (!remoteId) return;
+  if (!localStream) {
+    statusEl.textContent = 'Waiting for camera access...';
+    return;
+  }
+  const call = peer.call(remoteId, localStream);
+  setupCall(call);
+});
+
+function setupCall(call) {
+  currentCall = call;
+  hangupBtn.style.display = 'inline-block';
+  statusEl.textContent = 'Connecting...';
+
+  call.on('stream', (remoteStream) => {
+    remoteVideo.srcObject = remoteStream;
+    statusEl.textContent = 'Connected';
+  });
+
+  call.on('close', endCall);
+  call.on('error', (err) => {
+    statusEl.textContent = 'Call error: ' + err;
+  });
+}
+
+function endCall() {
+  if (currentCall) currentCall.close();
+  remoteVideo.srcObject = null;
+  hangupBtn.style.display = 'none';
+  statusEl.textContent = 'Call ended';
+}
+
+hangupBtn.addEventListener('click', endCall);
+</script>
+
+</body>
+</html>
