@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+no<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -67,6 +67,7 @@
 <div id="status"></div>
 
 <div id="videos">
+  <style>#localVideo{transform:scaleX(-1);}</style>
   <video id="localVideo" autoplay playsinline muted></video>
   <video id="remoteVideo" autoplay playsinline></video>
 </div>
@@ -102,7 +103,7 @@ async function initMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user' },
-      audio: true,
+      audio: { echoCancellation: true, noiseSuppression: true },
     });
     localVideo.srcObject = localStream;
   } catch (err) {
