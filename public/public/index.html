@@ -3,71 +3,41 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PeerJS Video Call Demo</title>
+<title>Oracle Beam Video Call Demo</title>
 <style>
-  body {
-    font-family: -apple-system, Arial, sans-serif;
-    background: #111;
-    color: #eee;
-    margin: 0;
-    padding: 16px;
-    text-align: center;
-  }
+  body { font-family: -apple-system, Arial, sans-serif; background: #111; color: #eee; margin: 0; padding: 16px; text-align: center; }
   h2 { margin: 8px 0; }
-  #myId {
-    font-size: 1.1em;
-    background: #222;
-    padding: 10px;
-    border-radius: 8px;
-    word-break: break-all;
-    margin-bottom: 12px;
-  }
-  input {
-    padding: 10px;
-    font-size: 1em;
-    width: 70%;
-    border-radius: 6px;
-    border: none;
-    margin-right: 6px;
-  }
-  button {
-    padding: 10px 16px;
-    font-size: 1em;
-    border-radius: 6px;
-    border: none;
-    background: #2d7ef7;
-    color: white;
-    margin-top: 8px;
-  }
+  #myId { font-size: 1.1em; background: #222; padding: 10px; border-radius: 8px; word-break: break-all; margin-bottom: 12px; }
+  input { padding: 10px; font-size: 1em; width: 70%; border-radius: 6px; border: none; margin-right: 6px; }
+  button { padding: 10px 16px; font-size: 1em; border-radius: 6px; border: none; background: #2d7ef7; color: white; margin-top: 8px; margin-right: 6px; }
+  #audioCallBtn { background: #2ecc71; }
   #hangup { background: #e74c3c; display: none; }
-  video {
-    width: 100%;
-    max-width: 320px;
-    background: #000;
-    border-radius: 8px;
-    margin: 8px;
-  }
+  video { width: 100%; max-width: 320px; background: #000; border-radius: 8px; margin: 8px; }
+  #localVideo { transform: scaleX(-1); }
   #videos { display: flex; flex-wrap: wrap; justify-content: center; }
   #status { margin-top: 10px; color: #9be89b; min-height: 20px; }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 
-<h2>PeerJS Video Call Demo</h2>
+<h2>Oracle Beam Video Call Demo</h2>
 
 <div>Your ID (share this with the other phone):</div>
 <div id="myId">connecting...</div>
 
 <div>
   <input id="remoteId" placeholder="Enter other phone's ID" />
-  <button id="callBtn">Call</button>
+</div>
+<div>
+  <button id="videoCallBtn">Video Call</button>
+  <button id="audioCallBtn">Audio Call</button>
   <button id="hangup">Hang Up</button>
 </div>
 
 <div id="status"></div>
 
 <div id="videos">
-  <style>#localVideo{transform:scaleX(-1);}</style>
   <video id="localVideo" autoplay playsinline muted></video>
   <video id="remoteVideo" autoplay playsinline></video>
 </div>
@@ -79,76 +49,128 @@ const myIdEl = document.getElementById('myId');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const hangupBtn = document.getElementById('hangup');
+const videoCallBtn = document.getElementById('videoCallBtn');
+const audioCallBtn = document.getElementById('audioCallBtn');
 
-let localStream = null;
+let fullStream = null;
 let currentCall = null;
+let audioCtx = null;
+let ringInterval = null;
 
 const peer = new Peer(undefined, {
   host: location.hostname,
   port: location.port || 9000,
-  path: '/peerjs',
+  path: '/',
   secure: true,
 });
 
-peer.on('open', (id) => {
-  myIdEl.textContent = id;
-});
-
+peer.on('open', (id) => { myIdEl.textContent = id; });
 peer.on('error', (err) => {
   statusEl.textContent = 'Error: ' + err.type;
-  console.error(err);
+  stopRingtone();
 });
 
 async function initMedia() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({
+    fullStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user' },
       audio: { echoCancellation: true, noiseSuppression: true },
     });
-    localVideo.srcObject = localStream;
+    localVideo.srcObject = fullStream;
   } catch (err) {
     statusEl.textContent = 'Camera/mic access failed: ' + err.message;
   }
 }
 initMedia();
 
+// Pleasant two-tone ringtone using Web Audio API (no external files needed)
+function playRingtone() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function ringOnce() {
+    const now = audioCtx.currentTime;
+    [440, 480].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0, now + 0.4);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    });
+  }
+  ringOnce();
+  ringInterval = setInterval(ringOnce, 1200);
+}
+function stopRingtone() {
+  if (ringInterval) { clearInterval(ringInterval); ringInterval = null; }
+}
+
+function getOutgoingStream(isAudioOnly) {
+  if (!isAudioOnly) return fullStream;
+  const audioOnly = new MediaStream();
+  fullStream.getAudioTracks().forEach(t => audioOnly.addTrack(t));
+  return audioOnly;
+}
+
 peer.on('call', (call) => {
-  statusEl.textContent = 'Incoming call... answering';
-  call.answer(localStream);
-  setupCall(call);
+  const isAudioOnly = call.metadata && call.metadata.audioOnly;
+  statusEl.textContent = isAudioOnly ? 'Incoming audio call... answering' : 'Incoming video call... answering';
+  playRingtone();
+  const outgoing = getOutgoingStream(isAudioOnly);
+  call.answer(outgoing);
+  setupCall(call, isAudioOnly);
+  stopRingtone();
 });
 
-document.getElementById('callBtn').addEventListener('click', () => {
+function startCall(isAudioOnly) {
   const remoteId = document.getElementById('remoteId').value.trim();
   if (!remoteId) return;
-  if (!localStream) {
-    statusEl.textContent = 'Waiting for camera access...';
-    return;
-  }
-  const call = peer.call(remoteId, localStream);
-  setupCall(call);
-});
+  if (!fullStream) { statusEl.textContent = 'Waiting for camera/mic access...'; return; }
+  const outgoing = getOutgoingStream(isAudioOnly);
+  playRingtone();
+  const call = peer.call(remoteId, outgoing, { metadata: { audioOnly: isAudioOnly } });
+  setupCall(call, isAudioOnly);
+}
 
-function setupCall(call) {
+videoCallBtn.addEventListener('click', () => startCall(false));
+audioCallBtn.addEventListener('click', () => startCall(true));
+
+function setupCall(call, isAudioOnly) {
   currentCall = call;
   hangupBtn.style.display = 'inline-block';
   statusEl.textContent = 'Connecting...';
 
+  if (isAudioOnly) {
+    localVideo.classList.add('hidden');
+    remoteVideo.classList.add('hidden');
+  } else {
+    localVideo.classList.remove('hidden');
+    remoteVideo.classList.remove('hidden');
+  }
+
   call.on('stream', (remoteStream) => {
+    stopRingtone();
     remoteVideo.srcObject = remoteStream;
-    statusEl.textContent = 'Connected';
+    statusEl.textContent = isAudioOnly ? 'Audio call connected' : 'Video call connected';
   });
 
   call.on('close', endCall);
   call.on('error', (err) => {
+    stopRingtone();
     statusEl.textContent = 'Call error: ' + err;
   });
 }
 
 function endCall() {
+  stopRingtone();
   if (currentCall) currentCall.close();
   remoteVideo.srcObject = null;
   hangupBtn.style.display = 'none';
+  localVideo.classList.remove('hidden');
+  remoteVideo.classList.remove('hidden');
   statusEl.textContent = 'Call ended';
 }
 
@@ -156,4 +178,4 @@ hangupBtn.addEventListener('click', endCall);
 </script>
 
 </body>
-</html>
+  </html>
