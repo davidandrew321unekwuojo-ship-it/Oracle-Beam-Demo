@@ -22,9 +22,9 @@ const server = https.createServer(options, app);
 // Signaling server lives at /peerjs — this is what PeerJS uses to exchange
 // connection info between the two phones before the direct video stream starts.
 const peerServer = ExpressPeerServer(server, {
-  path: '/',
+  path: '/'
 });
-app.use('/peerjs', peerServer);
+app.use(peerServer);
 
 peerServer.on('connection', (client) => {
   console.log('Peer connected:', client.getId());
