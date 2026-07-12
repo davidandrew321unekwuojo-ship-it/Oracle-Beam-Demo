@@ -1,9 +1,11 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Oracle Beam Video Call Demo</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0d1321">
 <style>
   * { box-sizing: border-box; }
   body {
@@ -28,7 +30,7 @@
     justify-content: space-between;
     gap: 8px;
   }
-  #copyIdBtn {
+  #copyIdBtn, #changeIdBtn {
     background: #2d7ef7;
     border: none;
     color: white;
@@ -36,7 +38,9 @@
     border-radius: 6px;
     font-size: 0.85em;
     flex-shrink: 0;
+    margin: 0;
   }
+  #changeIdBtn { background: #555; }
   input {
     padding: 10px;
     font-size: 1em;
@@ -57,6 +61,11 @@
   }
   #audioCallBtn { background: #2ecc71; }
   #status { margin-top: 10px; color: #9be89b; min-height: 20px; }
+
+  .contactsList { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+  .contactChip { background: #16213a; border: 1px solid #2d7ef7; padding: 8px 14px; border-radius: 20px; font-size: 0.9em; margin: 0; }
+  .saveContactBar { display: none; align-items: center; gap: 6px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+  .saveContactBar input { width: 40%; }
 
   /* --- Call screen layout --- */
   #callScreen {
@@ -208,6 +217,7 @@
   <div id="myId">
     <span id="myIdText">connecting...</span>
     <button id="copyIdBtn">Copy</button>
+    <button id="changeIdBtn">Change</button>
   </div>
 
   <div>
@@ -219,6 +229,14 @@
   </div>
 
   <div id="status"></div>
+
+  <div id="contactsList" class="contactsList"></div>
+
+  <div id="saveContactBar" class="saveContactBar">
+    <input id="saveContactName" placeholder="Save as..." />
+    <button id="confirmSaveContact">Save</button>
+    <button id="dismissSaveContact" style="background:#555;">Skip</button>
+  </div>
 </div>
 
 <!-- Incoming call full-screen prompt -->
@@ -256,6 +274,7 @@
 const statusEl = document.getElementById('status');
 const myIdText = document.getElementById('myIdText');
 const copyIdBtn = document.getElementById('copyIdBtn');
+const changeIdBtn = document.getElementById('changeIdBtn');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const videoCallBtn = document.getElementById('videoCallBtn');
@@ -271,6 +290,9 @@ const declineBtn = document.getElementById('declineBtn');
 const recordBtn = document.getElementById('recordBtn');
 const recIndicator = document.getElementById('recIndicator');
 const recordCanvas = document.getElementById('recordCanvas');
+const contactsList = document.getElementById('contactsList');
+const saveContactBar = document.getElementById('saveContactBar');
+const saveContactName = document.getElementById('saveContactName');
 
 let fullStream = null;
 let currentCall = null;
@@ -278,17 +300,55 @@ let pendingIncomingCall = null;
 let audioCtx = null;
 let ringInterval = null;
 let currentIsAudioOnly = false;
+let currentRemoteIdForSaving = null;
 
-// --- Recording state ---
 let mediaRecorder = null;
 let recordedChunks = [];
 let recordCanvasCtx = null;
 let recordDrawLoopId = null;
 let isRecording = false;
 
-peer_setup();
-function peer_setup() {
-  window.peer = new Peer(undefined, {
+// --- Permanent 4-digit "phone number" style ID, stored on this device ---
+function generateFourDigitId() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+function getOrCreateMyPermanentId() {
+  let id = localStorage.getItem('oracleBeamMyId');
+  if (!id) {
+    id = generateFourDigitId();
+    localStorage.setItem('oracleBeamMyId', id);
+  }
+  return id;
+}
+
+// --- Contacts book, stored locally on this device only ---
+function getContacts() {
+  return JSON.parse(localStorage.getItem('oracleBeamContacts') || '{}');
+}
+function saveContact(id, name) {
+  const contacts = getContacts();
+  contacts[id] = name;
+  localStorage.setItem('oracleBeamContacts', JSON.stringify(contacts));
+  renderContacts();
+}
+function renderContacts() {
+  const contacts = getContacts();
+  contactsList.innerHTML = '';
+  Object.entries(contacts).forEach(([id, name]) => {
+    const btn = document.createElement('button');
+    btn.className = 'contactChip';
+    btn.textContent = name;
+    btn.addEventListener('click', () => {
+      document.getElementById('remoteId').value = id;
+    });
+    contactsList.appendChild(btn);
+  });
+}
+
+let myPermanentId = getOrCreateMyPermanentId();
+let peer;
+function connectPeer() {
+  peer = new Peer(myPermanentId, {
     host: location.hostname,
     port: location.port || 9000,
     path: '/',
@@ -296,17 +356,44 @@ function peer_setup() {
   });
   peer.on('open', (id) => { myIdText.textContent = id; });
   peer.on('error', (err) => {
+    if (err.type === 'unavailable-id') {
+      myPermanentId = generateFourDigitId();
+      localStorage.setItem('oracleBeamMyId', myPermanentId);
+      connectPeer();
+      return;
+    }
     statusEl.textContent = 'Error: ' + err.type;
     stopRingtone();
   });
   peer.on('call', (call) => {
     const isAudioOnly = call.metadata && call.metadata.audioOnly;
     pendingIncomingCall = { call, isAudioOnly };
+    currentRemoteIdForSaving = call.peer;
     incomingLabel.textContent = isAudioOnly ? 'Incoming audio call' : 'Incoming video call';
     incomingScreen.style.display = 'flex';
     playRingtone();
   });
 }
+connectPeer();
+
+changeIdBtn.addEventListener('click', () => {
+  const wantsNumber = prompt('Enter a new 4-digit ID (leave blank for a random one):');
+  let newId;
+  if (wantsNumber === null) return;
+  if (wantsNumber.trim() === '') {
+    newId = generateFourDigitId();
+  } else if (/^\d{4}$/.test(wantsNumber.trim())) {
+    newId = wantsNumber.trim();
+  } else {
+    alert('Please enter exactly 4 digits, or leave it blank.');
+    return;
+  }
+  if (peer) peer.destroy();
+  myPermanentId = newId;
+  localStorage.setItem('oracleBeamMyId', newId);
+  myIdText.textContent = 'connecting...';
+  connectPeer();
+});
 
 copyIdBtn.addEventListener('click', () => {
   navigator.clipboard.writeText(myIdText.textContent).then(() => {
@@ -326,6 +413,7 @@ async function initMedia() {
   }
 }
 initMedia();
+renderContacts();
 
 function playRingtone() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -381,6 +469,7 @@ function startCall(isAudioOnly) {
   const remoteId = document.getElementById('remoteId').value.trim();
   if (!remoteId) return;
   if (!fullStream) { statusEl.textContent = 'Waiting for camera/mic access...'; return; }
+  currentRemoteIdForSaving = remoteId;
   const outgoing = getOutgoingStream(isAudioOnly);
   playRingtone();
   const call = peer.call(remoteId, outgoing, { metadata: { audioOnly: isAudioOnly } });
@@ -428,9 +517,25 @@ function endCall() {
   remoteVideo.srcObject = null;
   callScreen.style.display = 'none';
   statusEl.textContent = 'Call ended';
+
+  if (currentRemoteIdForSaving && !getContacts()[currentRemoteIdForSaving]) {
+    saveContactBar.style.display = 'flex';
+    saveContactName.value = '';
+  }
 }
 
 callHangupBtn.addEventListener('click', endCall);
+
+document.getElementById('confirmSaveContact').addEventListener('click', () => {
+  const name = saveContactName.value.trim();
+  if (name && currentRemoteIdForSaving) {
+    saveContact(currentRemoteIdForSaving, name);
+  }
+  saveContactBar.style.display = 'none';
+});
+document.getElementById('dismissSaveContact').addEventListener('click', () => {
+  saveContactBar.style.display = 'none';
+});
 
 // ================= RECORDING =================
 
@@ -438,7 +543,6 @@ function startRecording() {
   if (!currentCall) return;
   recordedChunks = [];
 
-  // Build a mixed audio track from both local and remote audio
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const dest = audioCtx.createMediaStreamDestination();
 
@@ -455,10 +559,8 @@ function startRecording() {
   let recordStream;
 
   if (currentIsAudioOnly) {
-    // Audio-only: just record the mixed audio, no canvas needed
     recordStream = dest.stream;
   } else {
-    // Video call: draw both video feeds onto a canvas each frame, matching what's shown on screen
     recordCanvas.width = 1280;
     recordCanvas.height = 720;
     recordCanvasCtx = recordCanvas.getContext('2d');
@@ -530,7 +632,12 @@ recordBtn.addEventListener('click', () => {
     startRecording();
   }
 });
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js');
+}
 </script>
 
 </body>
-  </html>
+                                          </html>
+  
