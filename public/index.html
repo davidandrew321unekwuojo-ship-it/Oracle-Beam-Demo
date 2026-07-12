@@ -1,73 +1,318 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Oracle Beam Video Call Demo</title>
 <style>
-  body { font-family: -apple-system, Arial, sans-serif; background: #111; color: #eee; margin: 0; padding: 16px; text-align: center; }
-  h2 { margin: 8px 0; }
-  #myId { font-size: 1.1em; background: #222; padding: 10px; border-radius: 8px; word-break: break-all; margin-bottom: 12px; }
-  input { padding: 10px; font-size: 1em; width: 70%; border-radius: 6px; border: none; margin-right: 6px; }
-  button { padding: 10px 16px; font-size: 1em; border-radius: 6px; border: none; background: #2d7ef7; color: white; margin-top: 8px; margin-right: 6px; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Arial, sans-serif;
+    background: #0d1321;
+    color: #eee;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+  .container { padding: 16px; text-align: center; }
+  h2 { margin: 8px 0; color: #eaf2ff; }
+  #myId {
+    font-size: 1em;
+    background: #16213a;
+    padding: 10px;
+    border-radius: 8px;
+    word-break: break-all;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  #copyIdBtn {
+    background: #2d7ef7;
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    flex-shrink: 0;
+  }
+  input {
+    padding: 10px;
+    font-size: 1em;
+    width: 70%;
+    border-radius: 6px;
+    border: none;
+    margin-right: 6px;
+  }
+  button {
+    padding: 10px 16px;
+    font-size: 1em;
+    border-radius: 6px;
+    border: none;
+    background: #2d7ef7;
+    color: white;
+    margin-top: 8px;
+    margin-right: 6px;
+  }
   #audioCallBtn { background: #2ecc71; }
-  #hangup { background: #e74c3c; display: none; }
-  video { width: 100%; max-width: 320px; background: #000; border-radius: 8px; margin: 8px; }
-  #localVideo { transform: scaleX(-1); }
-  #videos { display: flex; flex-wrap: wrap; justify-content: center; }
   #status { margin-top: 10px; color: #9be89b; min-height: 20px; }
-  .hidden { display: none !important; }
+
+  /* --- Call screen layout --- */
+  #callScreen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 20;
+  }
+  #remoteVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #111;
+  }
+  #localVideo {
+    position: absolute;
+    bottom: 90px;
+    right: 16px;
+    width: 110px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.4);
+    transform: scaleX(-1);
+    background: #000;
+  }
+  #callInfo {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: #fff;
+    font-size: 1.1em;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  }
+  #recIndicator {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    font-size: 0.9em;
+    background: rgba(0,0,0,0.4);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  #recDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e74c3c;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  #audioOnlyLabel {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+  #audioOnlyLabel .avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: #2d7ef7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2em;
+    margin-bottom: 12px;
+  }
+  #callControls {
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+  #callControls button {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    font-size: 1.3em;
+    margin: 0;
+  }
+  #callHangupBtn { background: #e74c3c; }
+  #recordBtn { background: #444; }
+  #recordBtn.active { background: #e74c3c; }
+
+  /* --- Incoming call screen --- */
+  #incomingScreen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(180deg, #16213a, #0d1321);
+    z-index: 30;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-align: center;
+  }
+  #incomingScreen .avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: #2d7ef7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5em;
+    margin-bottom: 20px;
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(45,126,247,0.6); }
+    70% { box-shadow: 0 0 0 24px rgba(45,126,247,0); }
+    100% { box-shadow: 0 0 0 0 rgba(45,126,247,0); }
+  }
+  #incomingLabel { font-size: 1.2em; margin-bottom: 4px; }
+  #incomingSubLabel { color: #9fb3d9; margin-bottom: 40px; }
+  #incomingActions { display: flex; gap: 40px; }
+  #incomingActions button {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    font-size: 1.5em;
+    margin: 0;
+  }
+  #declineBtn { background: #e74c3c; }
+  #acceptBtn { background: #2ecc71; }
 </style>
 </head>
 <body>
 
-<h2>Oracle Beam Video Call Demo</h2>
+<div class="container">
+  <h2>Oracle Beam Video Call Demo</h2>
 
-<div>Your ID (share this with the other phone):</div>
-<div id="myId">connecting...</div>
+  <div>Your ID (share this with the other phone):</div>
+  <div id="myId">
+    <span id="myIdText">connecting...</span>
+    <button id="copyIdBtn">Copy</button>
+  </div>
 
-<div>
-  <input id="remoteId" placeholder="Enter other phone's ID" />
+  <div>
+    <input id="remoteId" placeholder="Enter other phone's ID" />
+  </div>
+  <div>
+    <button id="videoCallBtn">Video Call</button>
+    <button id="audioCallBtn">Audio Call</button>
+  </div>
+
+  <div id="status"></div>
 </div>
-<div>
-  <button id="videoCallBtn">Video Call</button>
-  <button id="audioCallBtn">Audio Call</button>
-  <button id="hangup">Hang Up</button>
+
+<!-- Incoming call full-screen prompt -->
+<div id="incomingScreen">
+  <div class="avatar">📞</div>
+  <div id="incomingLabel">Incoming call</div>
+  <div id="incomingSubLabel">from Oracle Beam peer</div>
+  <div id="incomingActions">
+    <button id="declineBtn">✕</button>
+    <button id="acceptBtn">✓</button>
+  </div>
 </div>
 
-<div id="status"></div>
-
-<div id="videos">
-  <video id="localVideo" autoplay playsinline muted></video>
+<!-- Active call screen -->
+<div id="callScreen">
+  <div id="callInfo">Connecting...</div>
+  <div id="recIndicator"><span id="recDot"></span> REC</div>
   <video id="remoteVideo" autoplay playsinline></video>
+  <video id="localVideo" autoplay playsinline muted></video>
+  <div id="audioOnlyLabel">
+    <div class="avatar">🎧</div>
+    <div>Audio call</div>
+  </div>
+  <div id="callControls">
+    <button id="recordBtn">⏺</button>
+    <button id="callHangupBtn">✕</button>
+  </div>
 </div>
+
+<!-- Hidden canvas used only for compositing the recording -->
+<canvas id="recordCanvas" style="display:none;"></canvas>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const statusEl = document.getElementById('status');
-const myIdEl = document.getElementById('myId');
+const myIdText = document.getElementById('myIdText');
+const copyIdBtn = document.getElementById('copyIdBtn');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
-const hangupBtn = document.getElementById('hangup');
 const videoCallBtn = document.getElementById('videoCallBtn');
 const audioCallBtn = document.getElementById('audioCallBtn');
+const callScreen = document.getElementById('callScreen');
+const callInfo = document.getElementById('callInfo');
+const audioOnlyLabel = document.getElementById('audioOnlyLabel');
+const callHangupBtn = document.getElementById('callHangupBtn');
+const incomingScreen = document.getElementById('incomingScreen');
+const incomingLabel = document.getElementById('incomingLabel');
+const acceptBtn = document.getElementById('acceptBtn');
+const declineBtn = document.getElementById('declineBtn');
+const recordBtn = document.getElementById('recordBtn');
+const recIndicator = document.getElementById('recIndicator');
+const recordCanvas = document.getElementById('recordCanvas');
 
 let fullStream = null;
 let currentCall = null;
+let pendingIncomingCall = null;
 let audioCtx = null;
 let ringInterval = null;
+let currentIsAudioOnly = false;
 
-const peer = new Peer(undefined, {
-  host: location.hostname,
-  port: location.port || 9000,
-  path: '/',
-  secure: true,
-});
+// --- Recording state ---
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordCanvasCtx = null;
+let recordDrawLoopId = null;
+let isRecording = false;
 
-peer.on('open', (id) => { myIdEl.textContent = id; });
-peer.on('error', (err) => {
-  statusEl.textContent = 'Error: ' + err.type;
-  stopRingtone();
+peer_setup();
+function peer_setup() {
+  window.peer = new Peer(undefined, {
+    host: location.hostname,
+    port: location.port || 9000,
+    path: '/',
+    secure: true,
+  });
+  peer.on('open', (id) => { myIdText.textContent = id; });
+  peer.on('error', (err) => {
+    statusEl.textContent = 'Error: ' + err.type;
+    stopRingtone();
+  });
+  peer.on('call', (call) => {
+    const isAudioOnly = call.metadata && call.metadata.audioOnly;
+    pendingIncomingCall = { call, isAudioOnly };
+    incomingLabel.textContent = isAudioOnly ? 'Incoming audio call' : 'Incoming video call';
+    incomingScreen.style.display = 'flex';
+    playRingtone();
+  });
+}
+
+copyIdBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(myIdText.textContent).then(() => {
+    copyIdBtn.textContent = 'Copied!';
+    setTimeout(() => { copyIdBtn.textContent = 'Copy'; }, 1500);
+  });
 });
 
 async function initMedia() {
@@ -76,7 +321,6 @@ async function initMedia() {
       video: { facingMode: 'user' },
       audio: { echoCancellation: true, noiseSuppression: true },
     });
-    localVideo.srcObject = fullStream;
   } catch (err) {
     statusEl.textContent = 'Camera/mic access failed: ' + err.message;
   }
@@ -114,14 +358,23 @@ function getOutgoingStream(isAudioOnly) {
   return audioOnly;
 }
 
-peer.on('call', (call) => {
-  const isAudioOnly = call.metadata && call.metadata.audioOnly;
-  statusEl.textContent = isAudioOnly ? 'Incoming audio call... answering' : 'Incoming video call... answering';
-  playRingtone();
+acceptBtn.addEventListener('click', () => {
+  if (!pendingIncomingCall) return;
+  stopRingtone();
+  incomingScreen.style.display = 'none';
+  const { call, isAudioOnly } = pendingIncomingCall;
   const outgoing = getOutgoingStream(isAudioOnly);
   call.answer(outgoing);
   setupCall(call, isAudioOnly);
+  pendingIncomingCall = null;
+});
+
+declineBtn.addEventListener('click', () => {
+  if (!pendingIncomingCall) return;
   stopRingtone();
+  incomingScreen.style.display = 'none';
+  pendingIncomingCall.call.close();
+  pendingIncomingCall = null;
 });
 
 function startCall(isAudioOnly) {
@@ -139,42 +392,145 @@ audioCallBtn.addEventListener('click', () => startCall(true));
 
 function setupCall(call, isAudioOnly) {
   currentCall = call;
-  hangupBtn.style.display = 'inline-block';
-  statusEl.textContent = 'Connecting...';
+  currentIsAudioOnly = isAudioOnly;
+  callScreen.style.display = 'block';
+  callInfo.textContent = 'Connecting...';
 
   if (isAudioOnly) {
-    localVideo.classList.add('hidden');
-    remoteVideo.classList.add('hidden');
+    localVideo.style.display = 'none';
+    remoteVideo.style.display = 'none';
+    audioOnlyLabel.style.display = 'flex';
   } else {
-    localVideo.classList.remove('hidden');
-    remoteVideo.classList.remove('hidden');
+    localVideo.style.display = 'block';
+    remoteVideo.style.display = 'block';
+    audioOnlyLabel.style.display = 'none';
+    localVideo.srcObject = fullStream;
   }
 
   call.on('stream', (remoteStream) => {
     stopRingtone();
     remoteVideo.srcObject = remoteStream;
-    statusEl.textContent = isAudioOnly ? 'Audio call connected' : 'Video call connected';
+    callInfo.textContent = isAudioOnly ? 'Audio call connected' : 'Video call connected';
   });
 
   call.on('close', endCall);
   call.on('error', (err) => {
     stopRingtone();
-    statusEl.textContent = 'Call error: ' + err;
+    callInfo.textContent = 'Call error: ' + err;
   });
 }
 
 function endCall() {
+  if (isRecording) stopRecording();
   stopRingtone();
   if (currentCall) currentCall.close();
+  currentCall = null;
   remoteVideo.srcObject = null;
-  hangupBtn.style.display = 'none';
-  localVideo.classList.remove('hidden');
-  remoteVideo.classList.remove('hidden');
+  callScreen.style.display = 'none';
   statusEl.textContent = 'Call ended';
 }
 
-hangupBtn.addEventListener('click', endCall);
+callHangupBtn.addEventListener('click', endCall);
+
+// ================= RECORDING =================
+
+function startRecording() {
+  if (!currentCall) return;
+  recordedChunks = [];
+
+  // Build a mixed audio track from both local and remote audio
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const dest = audioCtx.createMediaStreamDestination();
+
+  if (fullStream && fullStream.getAudioTracks().length) {
+    const localSrc = audioCtx.createMediaStreamSource(new MediaStream(fullStream.getAudioTracks()));
+    localSrc.connect(dest);
+  }
+  const remoteStreamObj = remoteVideo.srcObject;
+  if (remoteStreamObj && remoteStreamObj.getAudioTracks().length) {
+    const remoteSrc = audioCtx.createMediaStreamSource(new MediaStream(remoteStreamObj.getAudioTracks()));
+    remoteSrc.connect(dest);
+  }
+
+  let recordStream;
+
+  if (currentIsAudioOnly) {
+    // Audio-only: just record the mixed audio, no canvas needed
+    recordStream = dest.stream;
+  } else {
+    // Video call: draw both video feeds onto a canvas each frame, matching what's shown on screen
+    recordCanvas.width = 1280;
+    recordCanvas.height = 720;
+    recordCanvasCtx = recordCanvas.getContext('2d');
+
+    function drawFrame() {
+      recordCanvasCtx.fillStyle = '#000';
+      recordCanvasCtx.fillRect(0, 0, recordCanvas.width, recordCanvas.height);
+      if (remoteVideo.readyState >= 2) {
+        recordCanvasCtx.drawImage(remoteVideo, 0, 0, recordCanvas.width, recordCanvas.height);
+      }
+      if (localVideo.readyState >= 2) {
+        const pw = 200, ph = 270, px = recordCanvas.width - pw - 24, py = recordCanvas.height - ph - 24;
+        recordCanvasCtx.save();
+        recordCanvasCtx.translate(px + pw, py);
+        recordCanvasCtx.scale(-1, 1);
+        recordCanvasCtx.drawImage(localVideo, 0, 0, pw, ph);
+        recordCanvasCtx.restore();
+      }
+      recordDrawLoopId = requestAnimationFrame(drawFrame);
+    }
+    drawFrame();
+
+    const canvasStream = recordCanvas.captureStream(30);
+    recordStream = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...dest.stream.getAudioTracks(),
+    ]);
+  }
+
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+    ? 'video/webm;codecs=vp8,opus'
+    : 'video/webm';
+
+  mediaRecorder = new MediaRecorder(recordStream, { mimeType });
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    if (recordDrawLoopId) cancelAnimationFrame(recordDrawLoopId);
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `oracle-beam-call-${stamp}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+
+  mediaRecorder.start();
+  isRecording = true;
+  recordBtn.classList.add('active');
+  recIndicator.style.display = 'flex';
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+  recordBtn.classList.remove('active');
+  recIndicator.style.display = 'none';
+}
+
+recordBtn.addEventListener('click', () => {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+});
 </script>
 
 </body>
-</html>
+  </html>
