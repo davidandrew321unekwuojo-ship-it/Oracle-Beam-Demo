@@ -402,10 +402,18 @@ copyIdBtn.addEventListener('click', () => {
   });
 });
 
+// --- FIX: force portrait capture so remote phones don't receive a
+// sideways/landscape frame. Without explicit width/height, some
+// Android/Chrome combos capture the raw landscape sensor frame and
+// rely on rotation metadata that doesn't survive the WebRTC hop. ---
 async function initMedia() {
   try {
     fullStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user' },
+      video: {
+        facingMode: 'user',
+        width: { ideal: 720 },
+        height: { ideal: 1280 }
+      },
       audio: { echoCancellation: true, noiseSuppression: true },
     });
   } catch (err) {
@@ -639,5 +647,5 @@ if ('serviceWorker' in navigator) {
 </script>
 
 </body>
-                                          </html>
-  
+ </html>
+ 
