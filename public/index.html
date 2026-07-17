@@ -416,15 +416,25 @@ async function initMedia() {
     // remote video fills the screen with object-fit:cover without
     // needing to crop/zoom much (avoids both the zoomed-face look and
     // the black-bar letterboxing).
+    // Don'''t let the capture shape get narrower than a normal 9:16 video —
+    // very tall/narrow screens would otherwise force a tight horizontal
+    // crop that zooms in on the face. This still covers the screen fully,
+    // just with a more natural field of view.
     const screenAspect = window.innerWidth / window.innerHeight;
+    const captureAspect = Math.max(screenAspect, 9 / 16);
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: 'user',
         width: { ideal: 480 },
-        aspectRatio: { ideal: screenAspect },
+        aspectRatio: { ideal: captureAspect },
         frameRate: { ideal: 20, max: 24 }
       },
-      audio: { echoCancellation: true, noiseSuppression: true },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: false,
+        channelCount: 1
+      },
     });
   } catch (err) {
     statusEl.textContent = 'Camera/mic access failed: ' + err.message;
@@ -644,19 +654,4 @@ function stopRecording() {
   recIndicator.style.display = 'none';
 }
 
-recordBtn.addEventListener('click', () => {
-  if (isRecording) {
-    stopRecording();
-  } else {
-    startRecording();
-  }
-});
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js');
-}
-</script>
-
-</body>
-     </html>
-     
+recordBtn.addEventListener(
