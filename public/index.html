@@ -162,9 +162,7 @@
   }
   #callHangupBtn { background: #e74c3c; }
   #recordBtn { background: #444; }
-  #recordBtn.active { background: #e74c3c; }
-
-  /* --- Incoming call screen --- */
+  #recordBtn.active { background: #e74c3c; }/* --- Incoming call screen --- */
   #incomingScreen {
     display: none;
     position: fixed;
@@ -264,9 +262,7 @@
     <button id="recordBtn">⏺</button>
     <button id="callHangupBtn">✕</button>
   </div>
-</div>
-
-<!-- Hidden canvas used only for compositing the recording -->
+</div><!-- Hidden canvas used only for compositing the recording -->
 <canvas id="recordCanvas" style="display:none;"></canvas>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -307,9 +303,7 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let recordCanvasCtx = null;
 let recordDrawLoopId = null;
-let isRecording = false;
-
-// --- Permanent 4-digit "phone number" style ID, stored on this device ---
+let isRecording = false;// --- Permanent 4-digit "phone number" style ID, stored on this device ---
 function generateFourDigitId() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
@@ -378,9 +372,7 @@ function connectPeer() {
     playRingtone();
   });
 }
-connectPeer();
-
-changeIdBtn.addEventListener('click', () => {
+connectPeer();changeIdBtn.addEventListener('click', () => {
   const wantsNumber = prompt('Enter a new 4-digit ID (leave blank for a random one):');
   let newId;
   if (wantsNumber === null) return;
@@ -441,9 +433,7 @@ async function initMedia() {
   }
 }
 initMedia();
-renderContacts();
-
-function playRingtone() {
+renderContacts();function playRingtone() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   function ringOnce() {
     const now = audioCtx.currentTime;
@@ -522,9 +512,7 @@ function setupCall(call, isAudioOnly) {
     remoteVideo.style.display = 'block';
     audioOnlyLabel.style.display = 'none';
     localVideo.srcObject = fullStream;
-  }
-
-  call.on('stream', (remoteStream) => {
+  }call.on('stream', (remoteStream) => {
     stopRingtone();
     remoteVideo.srcObject = remoteStream;
     callInfo.textContent = isAudioOnly ? 'Audio call connected' : 'Video call connected';
@@ -621,9 +609,7 @@ function startRecording() {
 
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
     ? 'video/webm;codecs=vp8,opus'
-    : 'video/webm';
-
-  mediaRecorder = new MediaRecorder(recordStream, { mimeType, videoBitsPerSecond: 800000 });
+    : 'video/webm';mediaRecorder = new MediaRecorder(recordStream, { mimeType, videoBitsPerSecond: 800000 });
   mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
   mediaRecorder.onstop = () => {
     if (recordDrawLoopId) clearTimeout(recordDrawLoopId);
@@ -654,4 +640,18 @@ function stopRecording() {
   recIndicator.style.display = 'none';
 }
 
-recordBtn.addEventListener(
+recordBtn.addEventListener('click', () => {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js');
+}
+</script>
+
+</body>
+</html>
