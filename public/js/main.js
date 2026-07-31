@@ -382,3 +382,11 @@ recordBtn.addEventListener('click', () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/service-worker.js');
 }
+// --- v2 modular architecture: initialize feature modules ---
+// These modules are currently empty placeholders (Sprint 3) and do not
+// affect any existing behavior. See public/js/modules/ for details.
+QualityMonitor.init();
+CallHistory.init();
+Reconnect.init();
+Settings.init();
+Notifications.init();
