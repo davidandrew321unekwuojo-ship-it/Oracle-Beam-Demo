@@ -112,8 +112,10 @@ function connectPeer() {
 }
 async function initMedia() {
   try {
-    const screenAspect = window.innerWidth / window.innerHeight;
-    const captureAspect = Math.max(screenAspect, 9 / 16);
+    // Use a fixed portrait aspect ratio for consistent framing.
+// This avoids device-specific aspect calculations that can
+// make the front camera appear overly zoomed.
+const captureAspect = 9 / 16;
 
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
