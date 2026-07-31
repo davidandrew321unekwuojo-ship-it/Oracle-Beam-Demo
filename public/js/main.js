@@ -127,7 +127,7 @@ height: {
     min: 854
 },
 aspectRatio: { ideal: captureAspect },
-frameRate: { ideal: 20, max: 24 }
+frameRate: { ideal: 20, max: 24 },
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
