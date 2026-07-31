@@ -118,10 +118,16 @@ async function initMedia() {
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: 'user',
-        width: { ideal: 480 },
-        aspectRatio: { ideal: captureAspect },
-        frameRate: { ideal: 20, max: 24 }
-      },
+        width: {
+    ideal: 640,
+    min: 480
+},
+height: {
+    ideal: 1136,
+    min: 854
+},
+aspectRatio: { ideal: captureAspect },
+frameRate: { ideal: 20, max: 24 }
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
