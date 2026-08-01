@@ -120,13 +120,7 @@ const captureAspect = 3 / 4;
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: 'user',
-        width: {
-    ideal: 640,
-    min: 480
-},
-height: {
-    ideal: 1136
-},
+        width: { ideal: 640, min: 480 },
 aspectRatio: { ideal: captureAspect },
 frameRate: { ideal: 20, max: 24 }
 },
