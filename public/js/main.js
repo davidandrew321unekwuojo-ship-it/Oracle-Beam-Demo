@@ -125,8 +125,7 @@ const captureAspect = 9 / 16;
     min: 480
 },
 height: {
-    ideal: 1136,
-    min: 854
+    ideal: 1136
 },
 aspectRatio: { ideal: captureAspect },
 frameRate: { ideal: 20, max: 24 }
