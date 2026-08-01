@@ -118,8 +118,11 @@ async function initMedia() {
 const captureAspect = window.innerWidth / window.innerHeight;
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: 'user',
-        width: { ideal: 640, min: 480 },
+  facingMode: 'user',
+  width: { ideal: window.innerWidth },
+  height: { ideal: window.innerHeight },
+  frameRate: { ideal: 20, max: 24 }
+}
 aspectRatio: { ideal: captureAspect },
 frameRate: { ideal: 20, max: 24 }
 },
