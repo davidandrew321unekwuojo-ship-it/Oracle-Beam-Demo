@@ -122,9 +122,6 @@ const captureAspect = window.innerWidth / window.innerHeight;
   width: { ideal: window.innerWidth },
   height: { ideal: window.innerHeight },
   frameRate: { ideal: 20, max: 24 }
-}
-aspectRatio: { ideal: captureAspect },
-frameRate: { ideal: 20, max: 24 }
 },
       audio: {
         echoCancellation: true,
