@@ -121,6 +121,7 @@ const captureAspect = window.innerWidth / window.innerHeight;
   facingMode: 'user',
   width: { ideal: window.innerWidth },
   height: { ideal: window.innerHeight },
+aspectRatio: { ideal: window.innerWidth / window.innerHeight, min: 0.4 },
   frameRate: { ideal: 20, max: 24 }
 },
       audio: {
