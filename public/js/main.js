@@ -115,7 +115,7 @@ async function initMedia() {
     // Use a fixed portrait aspect ratio for consistent framing.
 // This avoids device-specific aspect calculations that can
 // make the front camera appear overly zoomed.
-const captureAspect = 9 / 16;
+const captureAspect = 3 / 4;
 
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
