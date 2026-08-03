@@ -79,11 +79,14 @@ let peer;
 
 function connectPeer() {
   peer = new Peer(myPermanentId, {
-    host: location.hostname,
-    port: location.port || 9000,
-    path: '/',
-    secure: true,
-  });
+  host: location.hostname,
+  port: location.port || 9000,
+  path: '/',
+  secure: true,
+  config: {
+    iceServers: []
+  }
+});
 
   peer.on('open', (id) => { myIdText.textContent = id; });
 
