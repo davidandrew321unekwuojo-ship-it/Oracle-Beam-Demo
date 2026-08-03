@@ -112,18 +112,16 @@ function connectPeer() {
 }
 async function initMedia() {
   try {
-    // Use a fixed portrait aspect ratio for consistent framing.
-// This avoids device-specific aspect calculations that can
-// make the front camera appear overly zoomed.
-const captureAspect = window.innerWidth / window.innerHeight;
+    // Match capture aspect ratio to this phone's actual screen shape,
+    // uncapped, so the remote video fills the screen with minimal crop.
+    const captureAspect = window.innerWidth / window.innerHeight;
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
-  facingMode: 'user',
-  width: { ideal: window.innerWidth },
-  height: { ideal: window.innerHeight },
-aspectRatio: { ideal: window.innerWidth / window.innerHeight, min: 0.4 },
-  frameRate: { ideal: 20, max: 24 }
-},
+        facingMode: 'user',
+        width: { ideal: 640, min: 480 },
+        aspectRatio: { ideal: captureAspect },
+        frameRate: { ideal: 20, max: 24 }
+      },
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
