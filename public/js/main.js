@@ -125,7 +125,7 @@ async function initMedia() {
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
-        autoGainControl: false,
+        autoGainControl: true,
         channelCount: 1
       },
     });
