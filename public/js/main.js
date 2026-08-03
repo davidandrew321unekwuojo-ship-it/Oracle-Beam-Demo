@@ -83,6 +83,9 @@ function connectPeer() {
   port: location.port || 9000,
   path: '/',
   secure: true,
+  config: {
+    iceServers: []
+  }
 });
 
   peer.on('open', (id) => { myIdText.textContent = id; });
