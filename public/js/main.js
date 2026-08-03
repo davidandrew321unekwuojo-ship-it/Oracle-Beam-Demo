@@ -199,6 +199,21 @@ function setupCall(call, isAudioOnly) {
     stopRingtone();
     remoteVideo.srcObject = remoteStream;
     callInfo.textContent = isAudioOnly ? 'Audio call connected' : 'Video call connected';
+
+    // Cap outgoing video bitrate for more stable playback on the local
+    // hotspot connection. Audio senders are left untouched, and browsers
+    // without setParameters support are safely skipped.
+    const pc = call.peerConnection;
+    if (pc && typeof pc.getSenders === 'function') {
+      pc.getSenders().forEach((sender) => {
+        if (sender.track && sender.track.kind === 'video' && typeof sender.setParameters === 'function') {
+          const params = sender.getParameters();
+          if (!params.encodings) params.encodings = [{}];
+          params.encodings[0].maxBitrate = 700000; // ~700 kbps ceiling
+          sender.setParameters(params).catch(() => {});
+        }
+      });
+    }
   });
 
   call.on('close', endCall);
