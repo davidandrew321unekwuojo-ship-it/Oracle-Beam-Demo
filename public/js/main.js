@@ -234,6 +234,14 @@ function setupCall(call, isAudioOnly) {
         }
       });
     }
+
+    // Adapt remote video crop behavior to the actual delivered shape
+    // (Commit 6). Re-registering guards against duplicate listeners
+    // stacking up across multiple calls in one session.
+    remoteVideo.removeEventListener('loadedmetadata', updateRemoteVideoFit);
+    remoteVideo.removeEventListener('resize', updateRemoteVideoFit);
+    remoteVideo.addEventListener('loadedmetadata', updateRemoteVideoFit);
+    remoteVideo.addEventListener('resize', updateRemoteVideoFit);
   });
 
   call.on('close', endCall);
