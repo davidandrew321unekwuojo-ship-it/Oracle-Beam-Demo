@@ -177,6 +177,26 @@ function startCall(isAudioOnly) {
   const call = peer.call(remoteId, outgoing, { metadata: { audioOnly: isAudioOnly } });
   setupCall(call, isAudioOnly);
 }
+// Chooses between object-fit: cover and contain for #remoteVideo based
+// on the actual delivered video shape vs. the box's real shape — not a
+// fixed guess. If `cover` would need to crop away more than ~35% of the
+// frame to fill the box, `contain` (showing the full frame, with bars)
+// is used instead. Below that threshold, cover's minor crop is kept.
+function updateRemoteVideoFit() {
+  const vw = remoteVideo.videoWidth;
+  const vh = remoteVideo.videoHeight;
+  if (!vw || !vh) return; // no video track yet (e.g. audio-only call)
+
+  const videoAspect = vw / vh;
+  const boxAspect = remoteVideo.clientWidth / remoteVideo.clientHeight;
+  if (!boxAspect) return;
+
+  const cropFraction = videoAspect > boxAspect
+    ? 1 - (boxAspect / videoAspect)
+    : 1 - (videoAspect / boxAspect);
+
+  remoteVideo.style.objectFit = cropFraction > 0.35 ? 'contain' : 'cover';
+}
 
 function setupCall(call, isAudioOnly) {
   currentCall = call;
