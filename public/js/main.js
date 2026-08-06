@@ -115,8 +115,6 @@ function connectPeer() {
 }
 async function initMedia() {
   try {
-    // Match capture aspect ratio to this phone's actual screen shape,
-    // uncapped, so the remote video fills the screen with minimal crop.
     const captureAspect = window.innerWidth / window.innerHeight;
     fullStream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -132,6 +130,21 @@ async function initMedia() {
         channelCount: 1
       },
     });
+
+    // TEMPORARY DIAGNOSTIC — shows what the camera actually delivered
+    // vs. what was requested. Remove once no longer needed.
+    const vTrack = fullStream.getVideoTracks()[0];
+    const settings = vTrack.getSettings ? vTrack.getSettings() : {};
+    const diag = document.createElement('div');
+    diag.style.cssText = 'position:fixed;top:200px;left:12px;z-index:99;background:black;color:#0f0;font-size:11px;padding:8px;border-radius:6px;max-width:250px;';
+    diag.textContent = 'Requested aspect: ' + captureAspect.toFixed(3) +
+      ' | Delivered: ' + settings.width + '\u00D7' + settings.height +
+      ' | aspectRatio: ' + (settings.aspectRatio ? settings.aspectRatio.toFixed(3) : 'n/a');
+    document.body.appendChild(diag);
+  } catch (err) {
+    statusEl.textContent = 'Camera/mic access failed: ' + err.message;
+  }
+}
   } catch (err) {
     statusEl.textContent = 'Camera/mic access failed: ' + err.message;
   }
