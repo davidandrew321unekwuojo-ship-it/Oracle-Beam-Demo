@@ -145,10 +145,7 @@ async function initMedia() {
     statusEl.textContent = 'Camera/mic access failed: ' + err.message;
   }
 }
-  } catch (err) {
-    statusEl.textContent = 'Camera/mic access failed: ' + err.message;
-  }
-}
+  
 function playRingtone() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   function ringOnce() {
